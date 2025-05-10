@@ -183,7 +183,7 @@ def get_ip_or_zero(input: str) -> OpResult:
         return OpResult.Int(0)
     return OpResult.IPv4(ipaddress.IPv4Address(input))
 
-def read_walts_csv(epoch_id_key: str = "eid", file_names: List[str], ops: List[Operator]) -> None:
+def read_walts_csv(file_names: List[str], ops: List[Operator], epoch_id_key: str = "eid") -> None:
     inchs_eids_tupcount = [(open(fn, 'r'), [0], [0]) for fn in file_names]
     running = [len(ops)]
     
@@ -227,7 +227,7 @@ def read_walts_csv(epoch_id_key: str = "eid", file_names: List[str], ops: List[O
                     eid[0] = -1
     print("Done.")
 
-def meta_meter(static_field: Optional[str] = None, name: str, outc, next_op: Operator) -> Operator:
+def meta_meter(static_field: Optional[str], name: str, outc, next_op: Operator) -> Operator:
     epoch_count = [0]
     tups_count = [0]
     
@@ -378,7 +378,8 @@ def split(l: Operator, r: Operator) -> Operator:
 
 KeyExtractor = Callable[[Tuple], PyTuple[Tuple, Tuple]]
 
-def join(eid_key: str = "eid", left_extractor: KeyExtractor, right_extractor: KeyExtractor, next_op: Operator) -> PyTuple[Operator, Operator]:
+def join(eid_key: Optional[str], left_extractor: KeyExtractor, right_extractor: KeyExtractor, next_op: Operator) -> PyTuple[Operator, Operator]:
+    eid_key = "eid" if eid_key is None else eid_key
     h_tbl1 = {}
     h_tbl2 = {}
     left_curr_epoch = [0]

@@ -301,8 +301,9 @@ class SplitOperator(Operator):
         self.left.reset(tup)
         self.right.reset(tup)
 
-def join(eid_key: str = "eid", left_extractor: Callable[[TupleType], Tuple[TupleType, TupleType]],
+def join(eid_key: str, left_extractor: Callable[[TupleType], Tuple[TupleType, TupleType]],
          right_extractor: Callable[[TupleType], Tuple[TupleType, TupleType]], next_op: Operator) -> Tuple[Operator, Operator]:
+    eid_key = "eid" if eid_key == None else eid_key
     h_tbl1 = {}
     h_tbl2 = {}
     left_curr_epoch = 0
@@ -406,7 +407,7 @@ def syn_flood_sonata(next_op: Operator) -> List[Operator]:
     synacks_op = EpochOperator(epoch_dur, "eid", FilterOperator(synacks_filter, GroupByOperator(filter_groups(["ipv4.src"]), counter, "synacks", Operator())))
     acks_op = EpochOperator(epoch_dur, "eid", FilterOperator(acks_filter, GroupByOperator(filter_groups(["ipv4.dst"]), counter, "acks", Operator())))
 
-    join_op1, join_op2 = join(
+    join_op1, join_op2 = join("eid",
         left_extractor=lambda tup: (filter_groups(["host"])(tup), filter_groups(["syns+synacks"])(tup)),
         right_extractor=lambda tup: (rename_filtered_keys([("ipv4.dst", "host")])(tup), filter_groups(["acks"])(tup)),
         next_op=MapOperator(
@@ -414,7 +415,7 @@ def syn_flood_sonata(next_op: Operator) -> List[Operator]:
             FilterOperator(key_geq_int("syns+synacks-acks", threshold), next_op)
         )
     )
-    join_op3, join_op4 = join(
+    join_op3, join_op4 = join("eid",
         left_extractor=lambda tup: (rename_filtered_keys([("ipv4.dst", "host")])(tup), filter_groups(["syns"])(tup)),
         right_extractor=lambda tup: (rename_filtered_keys([("ipv4.src", "host")])(tup), filter_groups(["synacks"])(tup)),
         next_op=MapOperator(
@@ -436,7 +437,7 @@ def completed_flows(next_op: Operator) -> List[Operator]:
     syns_op = EpochOperator(epoch_dur, "eid", FilterOperator(syns_filter, GroupByOperator(filter_groups(["ipv4.dst"]), counter, "syns", Operator())))
     fins_op = EpochOperator(epoch_dur, "eid", FilterOperator(fins_filter, GroupByOperator(filter_groups(["ipv4.src"]), counter, "fins", Operator())))
 
-    op1, op2 = join(
+    op1, op2 = join("eid",
         left_extractor=lambda tup: (rename_filtered_keys([("ipv4.dst", "host")])(tup), filter_groups(["syns"])(tup)),
         right_extractor=lambda tup: (rename_filtered_keys([("ipv4.src", "host")])(tup), filter_groups(["fins"])(tup)),
         next_op=MapOperator(
@@ -456,7 +457,7 @@ def slowloris(next_op: Operator) -> List[Operator]:
     n_conns_op = EpochOperator(epoch_dur, "eid", FilterOperator(tcp_filter, DistinctOperator(filter_groups(["ipv4.src", "ipv4.dst", "l4.sport"]), GroupByOperator(filter_groups(["ipv4.dst"]), counter, "n_conns", FilterOperator(lambda tup: get_mapped_int("n_conns", tup) >= t1, Operator())))))
     n_bytes_op = EpochOperator(epoch_dur, "eid", FilterOperator(tcp_filter, GroupByOperator(filter_groups(["ipv4.dst"]), sum_ints("ipv4.len"), "n_bytes", FilterOperator(lambda tup: get_mapped_int("n_bytes", tup) >= t2, Operator()))))
 
-    op1, op2 = join(
+    op1, op2 = join("eid",
         left_extractor=lambda tup: (filter_groups(["ipv4.dst"])(tup), filter_groups(["n_conns"])(tup)),
         right_extractor=lambda tup: (filter_groups(["ipv4.dst"])(tup), filter_groups(["n_bytes"])(tup)),
         next_op=MapOperator(
@@ -485,7 +486,7 @@ def run_queries():
             "l4.dport": Int(50000),
             "l4.flags": Int(10)
         }
-        for i in range(20)
+        for i in range(5)
     ]
     for tup in sample_tuples:
         for query in queries:
